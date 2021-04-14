@@ -13,7 +13,7 @@ from scipy.optimize import fsolve
 def get_param_grid(svals,muvals, betavals):
     # gives parameter grids, with u1/u2 initials for the u2 side of the simplex (need to be reflected later)
     u1init = [0.05,0.48, 0.08]
-    u2init = [0.1,0.6,0.9]
+    u2init = [0.1,0.4,0.9]
     which_uinit = [0,1,2]
     r1init = [0.05, 0.5, 0.85, 0.2, 0.9] #each point's reflection accross the 45˚ line is included
     r2init = [0.1,  0.3,  0.9,  0.89, 0.2]
@@ -90,15 +90,20 @@ def GetXsteps(param_grid, tsteps):
     uvec = [u1init, u2init, buinit]
     xvec = [np.zeros(n),np.zeros(n), np.zeros(n)]
     rvec = [r1init, r2init]
-    
     for i in range(0,tsteps):
         result = NextGen(uvec,xvec,rvec, Kvec,pcvec ,betavec)
         uvec, xvec, rvec, W = result
     # check that reached equilibrium by checking that the previous value = the current value
-        next_step = NextGen(uvec,xvec,rvec, Kvec,pcvec ,betavec)
-        uvec2, xvec2, rvec2, W2 = next_step
-        reached_eq = np.isclose([uvec[0],*uvec[1],*rvec[0],*rvec[1],W], 
-                                [uvec2[0],*uvec2[1],*rvec2[0],*rvec2[1],W2],atol=1e-10, rtol = 1e-10)
+    
+    next_step = NextGen(uvec,xvec,rvec, Kvec,pcvec ,betavec)
+    uvec2, xvec2, rvec2, W2 = next_step
+    
+    # for the allclose to work, they all need to be arrays
+    #uvec, xvec, rvec, W = [np.array(item) for item in [uvec, xvec, rvec, W]]
+    
+                           
+    reached_eq = np.allclose(np.array([*uvec[0],*uvec[1],*rvec[0],*rvec[1],*W]), 
+                            np.array([*uvec2[0],*uvec2[1],*rvec2[0],*rvec2[1],*W2]),atol=1e-10, rtol = 1e-10)
     
     result = uvec, xvec, rvec, W, reached_eq
     return(result)
