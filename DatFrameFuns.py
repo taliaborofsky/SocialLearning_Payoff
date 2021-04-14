@@ -55,9 +55,9 @@ def get_param_grid(svals,muvals, betavals):
 # Iterate each initial point and parameter combination 50000 times.
 def get_1side_df(df):
     #make sure indexed correctly
-    tsteps = 200000
+    tsteps = 500000
     result = GetXsteps(df, tsteps = tsteps)
-    umat, xmat, rmat, W = result
+    umat, xmat, rmat, W, reached_eq = result
     
     #check_eq 
     
@@ -69,6 +69,7 @@ def get_1side_df(df):
     df.r2eq = rmat[1]
     df.Weq = W
     df.time = tsteps
+    df.reached_eq = reached_eq
     return(df)
     
 # Given a parameter mesh (param_grid) and tsteps, iterates each row for "tsteps" time stpes
@@ -89,8 +90,14 @@ def GetXsteps(param_grid, tsteps):
     rvec = [r1init, r2init]
     
     for i in range(0,tsteps):
-        result = NextGen(uvec,xvec,rvec,  Kvec,pcvec ,betavec)
+        result = NextGen(uvec,xvec,rvec, Kvec,pcvec ,betavec)
         uvec, xvec, rvec, W = result
+    # check that reached equilibrium
+        next_step = NextGen(uvec,xvec,rvec, Kvec,pcvec ,betavec)
+        uvec2, xvec2, rvec2, W2 = next_step
+        reached_eq = np.isclose(uvec[0], uvec2[0],atol=1e-10, rtol = 1e-10)
+    
+    result = uvec, xvec, rvec, W, reached_eq
     return(result)
 
 # Uses fsolve from scipy.optimize on rows that are taking more than 50000 iterations to reach an equilibrium.

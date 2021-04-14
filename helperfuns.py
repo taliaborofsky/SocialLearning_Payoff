@@ -68,20 +68,20 @@ def NextGen(uvec,xvec,rvec,K,pc,beta,deltas = [0, 0], eta=1):
     psi_1 = p1
     psi_1[mask_p1p2pos] = p1[mask_p1p2pos]/(p1[mask_p1p2pos] + p2[mask_p1p2pos])
     psi_2 = p2
-    psi_2[mask_p1p2pos] = p2[mask_p1p2pos]/(p1[mask_p1p2pos] + p2[mask_p1p2pos])
+    psi_2[mask_p1p2pos] = 1 - psi_1[mask_p1p2pos]
 
     
     Wu1 = Wv_fun(psi_1,u,rvec[0],K,pc)
     Wu2 = Wv_fun(psi_2,u,rvec[1],K,pc)
     Wbu = Wvbar_fun(u,K,pc)
     
-    Wx1 = Wv_fun(p1,x,rvec[0],K_x,pc_x)
-    Wx2 = Wv_fun(p2,x,rvec[1],K_x,pc_x)
+    Wx1 = Wv_fun(psi_1,x,rvec[0],K_x,pc_x)
+    Wx2 = Wv_fun(psi_2,x,rvec[1],K_x,pc_x)
     Wbx = Wvbar_fun(x,K_x,pc_x)
 
     
     W = Wu1 + Wu2 + Wbu + Wx1 + Wx2 + Wbx 
-    freqs = (1/W)*np.array([Wu1, Wu2, Wbu, Wx1, Wx2, Wbx])
+    freqs = [item/W for item in [Wu1, Wu2, Wbu, Wx1, Wx2, Wbx]]
     uvec = freqs[0:3]; xvec = freqs[3:6]
     
     rvec = [ri_fun(rvec[0], p1, beta,eta), ri_fun(rvec[1],p2,beta, eta)]
