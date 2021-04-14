@@ -66,7 +66,8 @@ def NextGen(uvec,xvec,rvec,K,pc,beta,deltas = [0, 0], eta=1):
     # get psi_1 and psi_2, and note that if the denominator is 0, then psi_1 = psi_2 = 0
     mask_p1p2pos = p1 + p2 > 0
     psi_1 = p1
-    psi_1[mask_p1p2pos] = p1[mask_p1p2pos]/(p1[mask_p1p2pos] + p2[mask_p1p2pos])
+    denom = p1[mask_p1p2pos] + p2[mask_p1p2pos]
+    psi_1[mask_p1p2pos] = p1[mask_p1p2pos]/denom
     psi_2 = p2
     psi_2[mask_p1p2pos] = 1 - psi_1[mask_p1p2pos]
 

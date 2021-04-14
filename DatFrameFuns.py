@@ -1,6 +1,6 @@
 import numpy as np
 from numpy import linalg as LA
-from helperfuns import *
+from helperfunsPayOff import *
 import scipy.stats as scs
 import pandas as pd
 #for parallelizing:

@@ -66,22 +66,23 @@ def NextGen(uvec,xvec,rvec,K,pc,beta,deltas = [0, 0], eta=1):
     # get psi_1 and psi_2, and note that if the denominator is 0, then psi_1 = psi_2 = 0
     mask_p1p2pos = p1 + p2 > 0
     psi_1 = p1
-    psi_1[mask_p1p2pos] = p1[mask_p1p2pos]/(p1[mask_p1p2pos] + p2[mask_p1p2pos])
+    denom = p1[mask_p1p2pos] + p2[mask_p1p2pos]
+    psi_1[mask_p1p2pos] = p1[mask_p1p2pos]/denom
     psi_2 = p2
-    psi_2[mask_p1p2pos] = p2[mask_p1p2pos]/(p1[mask_p1p2pos] + p2[mask_p1p2pos])
+    psi_2[mask_p1p2pos] = 1 - psi_1[mask_p1p2pos]
 
     
     Wu1 = Wv_fun(psi_1,u,rvec[0],K,pc)
     Wu2 = Wv_fun(psi_2,u,rvec[1],K,pc)
     Wbu = Wvbar_fun(u,K,pc)
     
-    Wx1 = Wv_fun(p1,x,rvec[0],K_x,pc_x)
-    Wx2 = Wv_fun(p2,x,rvec[1],K_x,pc_x)
+    Wx1 = Wv_fun(psi_1,x,rvec[0],K_x,pc_x)
+    Wx2 = Wv_fun(psi_2,x,rvec[1],K_x,pc_x)
     Wbx = Wvbar_fun(x,K_x,pc_x)
 
     
     W = Wu1 + Wu2 + Wbu + Wx1 + Wx2 + Wbx 
-    freqs = (1/W)*np.array([Wu1, Wu2, Wbu, Wx1, Wx2, Wbx])
+    freqs = [item/W for item in [Wu1, Wu2, Wbu, Wx1, Wx2, Wbx]]
     uvec = freqs[0:3]; xvec = freqs[3:6]
     
     rvec = [ri_fun(rvec[0], p1, beta,eta), ri_fun(rvec[1],p2,beta, eta)]
@@ -94,8 +95,21 @@ def Jac_UR(uvec, rvec, K,  W, beta):
     return(1)
 
 # Check equilibrium is externally stable with local stability analysis
-def Grad_s(uvec, rvec, W, s, beta):
-    return 1
+# Finds C_s for external stability analysis
+def Grad_s(uvec, rvec, W, s, beta, mu):
+    norm = scs.norm(mu,1)
+    u1 = uvec[0]
+    u2 = uvec[1]
+    psi_1 = u1
+    psi_1[u1 + u2> 0] = u1[u1+u2>0]/(u1[u1+u2>0] + u2[u1+u2>0])
+    psi_2 = u2
+    psi_2[u1 + u2> 0] = u2[u1+u2>0]/(u1[u1+u2>0] + u2[u1+u2>0])
+    r1 = rvec[0]
+    r2 = rvec[1]
+    fs = norm.pdf(s)
+    fminuss = norm.pdf(-s)
+    C_s = (1/W)*(-fs + r1*((fminuss +fs)*psi_1 - fs) + r2*((fminuss + fs)*psi_2 -fs))
+    return(C_s)
 # solve predicted equilibrium
 def PredictEquilibrium_NoPref(K,pc,beta):
     def Equilibrium_beta0(L,pc):
