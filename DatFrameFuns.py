@@ -56,6 +56,8 @@ def get_param_grid(svals,muvals, betavals):
 def get_1side_df(df):
     #make sure indexed correctly
     tsteps = 500000
+    
+    
     result = GetXsteps(df, tsteps = tsteps)
     umat, xmat, rmat, W, reached_eq = result
     
@@ -92,10 +94,11 @@ def GetXsteps(param_grid, tsteps):
     for i in range(0,tsteps):
         result = NextGen(uvec,xvec,rvec, Kvec,pcvec ,betavec)
         uvec, xvec, rvec, W = result
-    # check that reached equilibrium
+    # check that reached equilibrium by checking that the previous value = the current value
         next_step = NextGen(uvec,xvec,rvec, Kvec,pcvec ,betavec)
         uvec2, xvec2, rvec2, W2 = next_step
-        reached_eq = np.isclose(uvec[0], uvec2[0],atol=1e-10, rtol = 1e-10)
+        reached_eq = np.isclose([uvec[0],*uvec[1],*rvec[0],*rvec[1],W], 
+                                [uvec2[0],*uvec2[1],*rvec2[0],*rvec2[1],W2],atol=1e-10, rtol = 1e-10)
     
     result = uvec, xvec, rvec, W, reached_eq
     return(result)

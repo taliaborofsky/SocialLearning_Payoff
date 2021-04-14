@@ -1,7 +1,6 @@
 
 import numpy as np
 from numpy import linalg as LA
-from helperfuns import *
 import scipy.stats as scs
 import matplotlib.pyplot as plt
 
@@ -65,20 +64,21 @@ def NextGen(uvec,xvec,rvec,K,pc,beta,deltas = [0, 0], eta=1):
     
     # get psi_1 and psi_2, and note that if the denominator is 0, then psi_1 = psi_2 = 0
     mask_p1p2pos = p1 + p2 > 0
-    psi_1 = p1
+    psi_1 = np.zeros(len(p1))
     denom = p1[mask_p1p2pos] + p2[mask_p1p2pos]
     psi_1[mask_p1p2pos] = p1[mask_p1p2pos]/denom
-    psi_2 = p2
+    psi_2 = np.zeros(len(p1))
     psi_2[mask_p1p2pos] = 1 - psi_1[mask_p1p2pos]
-
+    r1 = rvec[0]
+    r2 = rvec[1]
     
-    Wu1 = Wv_fun(psi_1,u,rvec[0],K,pc)
-    Wu2 = Wv_fun(psi_2,u,rvec[1],K,pc)
-    Wbu = Wvbar_fun(u,K,pc)
+    Wu1 = u*(1+r1)*(K*psi_1 + pc)
+    Wu2 = u*(1+r2)*(K*psi_2 + pc)
+    Wbu = u*(1-pc-K)
     
-    Wx1 = Wv_fun(psi_1,x,rvec[0],K_x,pc_x)
-    Wx2 = Wv_fun(psi_2,x,rvec[1],K_x,pc_x)
-    Wbx = Wvbar_fun(x,K_x,pc_x)
+    Wx1 = 0 # fill in!
+    Wx2 = 0
+    Wbx = 0
 
     
     W = Wu1 + Wu2 + Wbu + Wx1 + Wx2 + Wbx 
