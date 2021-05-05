@@ -76,9 +76,9 @@ def NextGen(uvec,xvec,rvec,K,pc,beta,deltas = [0, 0], eta=1):
     Wu2 = u*(1+r2)*(K*psi_2 + pc)
     Wbu = u*(1-pc-K)
     
-    Wx1 = 0 # fill in!
-    Wx2 = 0
-    Wbx = 0
+    Wx1 = x*(1+r1)*(K_x*psi_1 + pc_x)
+    Wx2 = x*(1+r2)*(K_x*psi_2 + pc_x)
+    Wbx = x*(1-pc_x-K_x)
 
     
     W = Wu1 + Wu2 + Wbu + Wx1 + Wx2 + Wbx 
@@ -90,9 +90,48 @@ def NextGen(uvec,xvec,rvec,K,pc,beta,deltas = [0, 0], eta=1):
 
 
 # Check equilibrium is internally stable with local stability analysis
+""" Test Internal Stability of an equilibrium
+Jac_UR_evals finds the Jacobian and then solves for the eigenvalues.
+I compare the outputs of Jac_UR_evals and lambdastar to check that my equations in 
+the appendix are correct
+"""
 
-def Jac_UR(uvec, rvec, K,  W, beta):
-    return(1)
+def Jac_UR_evals(u1, r1,K, pc, beta):
+    
+    # constants
+    L = K/2 + pc
+    xi = K*(1+r1)/(4*u1**2)
+    W = 1 + pc + 2*r1*(K/2 + pc)
+    row1 = np.array([L*(1-u1)/W, -u1*L/W, u1*xi/W, -u1*xi/W])
+    row2 = np.array([-u1*L/W, L*(1-u1)/W, -u1*xi/W, u1*xi/W])
+    row3 = np.array([-beta*r1/(1+r1), 0, 1/(1+r1),0])
+    row4 = np.array([0, -beta*r1/(1+r1), 0, 1/(1+r1)])
+    Jac = np.array([row1, row2, row3, row4])
+    return(Jac)
+""" Test Internal Stability of an equilibrium
+lambdastar finds the eigenvalues using my equation (in the appendix)
+I compare the outputs of Jac_UR_evals and lambdastar to check that my equations in 
+the appendix are correct
+"""
+
+
+def lambdastar(u1,r1, K,pc,beta):
+    R = 1 + r1
+    L = K/2+pc
+    W = 1 + pc +2*r1*L
+    a1 = -R
+    b1 = 1
+    c1 = 2*L*r1*u1*beta - L*r1*beta
+    lamda1 = (-b1 + np.lib.scimath.sqrt(b1**2 - 4*a1*c1))/(2*a1)
+    lamda2= (-b1 - np.lib.scimath.sqrt(b1**2 - 4*a1*c1))/(2*a1)
+    
+    a2 = -2*R*W*u1
+    b2 = 2*W*u1 + K*R**2
+    c2 = -K*R - 2*L*W*r1*u1*beta
+    lamda3 = (-b2 + np.lib.scimath.sqrt(b2**2 - 4 *a2*c2))/(2*a2)
+    lamda4= (-b2 - np.lib.scimath.sqrt(b2**2 - 4*a2*c2))/(2*a2)
+    
+    return([lamda1,lamda2,lamda3,lamda4])
 
 # Check equilibrium is externally stable with local stability analysis
 # Finds C_s for external stability analysis
@@ -100,17 +139,21 @@ def Grad_s(uvec, rvec, W, s, beta, mu):
     norm = scs.norm(mu,1)
     u1 = uvec[0]
     u2 = uvec[1]
-    psi_1 = u1
-    psi_1[u1 + u2> 0] = u1[u1+u2>0]/(u1[u1+u2>0] + u2[u1+u2>0])
-    psi_2 = u2
-    psi_2[u1 + u2> 0] = u2[u1+u2>0]/(u1[u1+u2>0] + u2[u1+u2>0])
+    psi_1 = np.zeros(len(u1))
+    mask = u1 + u2> 0
+    psi_1[mask] = u1[mask]/(u1[mask] + u2[mask])
+    psi_2 = np.zeros(len(u2))
+    psi_2[mask] = u2[mask]/(u1[mask] + u2[mask])
     r1 = rvec[0]
     r2 = rvec[1]
     fs = norm.pdf(s)
     fminuss = norm.pdf(-s)
     C_s = (1/W)*(-fs + r1*((fminuss +fs)*psi_1 - fs) + r2*((fminuss + fs)*psi_2 -fs))
     return(C_s)
+
 # solve predicted equilibrium
+# input: parameters K, pc, beta
+# output: u1 value at equilibrium
 def PredictEquilibrium_NoPref(K,pc,beta):
     def Equilibrium_beta0(L,pc):
         return(2*L/(1+pc+2*L))
@@ -122,12 +165,11 @@ def PredictEquilibrium_NoPref(K,pc,beta):
         u1_minus = (-b - np.sqrt(b**2 - 4*a*c))/(2*a) # the equilibrium must be the smaller root
         return(u1_minus)
     L = K*0.5 + pc
-    if type(K) != int:
-        ans = np.zeros(len(K))
+    if np.array(K).size >1:
+        ans = np.zeros(K.shape)
         ans[beta>0]= Equilibrium_betapos(L[beta>0],pc[beta>0],beta[beta>0])
         ans[beta==0]=Equilibrium_beta0(L[beta==0],pc[beta==0])
     else:
-        ans = Equilibrium_betapos(L,pc,beta) if beta > 0 else Equilibrium_beta0
-   
+        ans = Equilibrium_betapos(L,pc,beta) if beta > 0 else Equilibrium_beta0(L,pc)
     
     return(ans)

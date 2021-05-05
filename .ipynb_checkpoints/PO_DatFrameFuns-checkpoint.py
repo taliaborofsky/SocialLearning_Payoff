@@ -1,6 +1,6 @@
 import numpy as np
 from numpy import linalg as LA
-from helperfunsPayOff import *
+from PO_helperfuns import *
 import scipy.stats as scs
 import pandas as pd
 #for parallelizing:
@@ -87,7 +87,7 @@ def GetXsteps(param_grid, tsteps):
     betavec = param_grid.beta.values
     
     n = len(u2init)
-    uvec = [u1init, u2init, buinit]
+    uvec = [u1init, u2init, buinit] # a list of 3 arrays
     xvec = [np.zeros(n),np.zeros(n), np.zeros(n)]
     rvec = [r1init, r2init]
     for i in range(0,tsteps):
@@ -101,9 +101,14 @@ def GetXsteps(param_grid, tsteps):
     # for the allclose to work, they all need to be arrays
     #uvec, xvec, rvec, W = [np.array(item) for item in [uvec, xvec, rvec, W]]
     
-                           
-    reached_eq = np.allclose(np.array([*uvec[0],*uvec[1],*rvec[0],*rvec[1],*W]), 
-                            np.array([*uvec2[0],*uvec2[1],*rvec2[0],*rvec2[1],*W2]),atol=1e-10, rtol = 1e-10)
+    # check if each corresponding value staying the same
+    curr = np.array([*np.array(uvec), *np.array(xvec), *np.array(rvec), np.array(W)]) # don't unpack W because it is 
+                                                                            # not a 2d array
+    nextval = np.array([*np.array(uvec2), *np.array(xvec2), *np.array(rvec2), np.array(W2)])
+    reached_eq = np.abs(np.array(curr) - np.array(nextval))> 1e-10  # false if about at equilibrium
+    reached_eq = np.sum(reached_eq.astype(int),1)==0 # True if u1, u2, bu,... all about at equilibrium
+    
+    # check if each corresponding x1, x2, bx val staying the same
     
     result = uvec, xvec, rvec, W, reached_eq
     return(result)
@@ -151,13 +156,13 @@ def reflect_df(df):
 
 # extract the unique equilibria, since manyy initial points will have iterated to the same equilibrium.
 def get_UniqueEquilibria(df,if_save=False):
-    df_eq = df.round(6)[(df.reached_eq==1)&(df.iterated==1)].groupby(['K','pc','s','mu','beta','u1eq','u2eq','bueq',
+    df_eq = df.round(6)[df.reached_eq==1].groupby(['K','pc','s','mu','beta','u1eq','u2eq','bueq',
                                                      'r1eq','r2eq','Weq','URstable'], as_index = False)
     df_eq = df_eq['u2init'].count()
     df_eq.rename(columns={'u2init':'NumInitials'}, inplace=True)
     # df_eq.reset_index(inplace=True, drop=True)
-    
-    df_eq = get_gradients(df_eq)
+    Cs = Grad_s([df_eq.u1eq, df_eq.u2eq], [df_eq.r1eq, df_eq.r2eq],df_eq.Weq, df_eq.s, df_eq.beta, df_eq.mu)
+    df_eq['C_s'] = Cs
     if if_save:
         df_eq.to_csv('UniqueEquilibria.csv', index = False)
     return(df_eq)
@@ -187,31 +192,14 @@ def JstarStable(row):
         row.URstable = 0.0
     return(row)
 
-# Check external stability by finding C_s
-def get_gradients(df):
-    df_use = df.copy()
-    u1vec = df_use.u1eq
-    u2vec = df_use.u2eq
-    r1vec = df_use.r1eq
-    r2vec = df_use.r2eq
-    Wvec = df_use.Weq
-    Kvec = df_use.K
-    svec = df_use.s
-    muvec = df_use.mu
-    betavec = df_use.beta
-    Csvec = [Grad_s([u1,u2], [r1,r2], W, s, beta,mu) for u1,
-             u2,r1,r2,W,s,beta,mu in zip(u1vec,u2vec,r1vec,r2vec,Wvec,svec,betavec, muvec)]
-    df_use['C_s'] = Csvec
-    return(df_use)
-
 
 
 
 def df_ext_stability_iterate(df):
     # Check stability to allele a (with delta_s > 0 and delta_s < 0)
     
-    x_pos_invades = df.apply(lambda row_eq:Check_ext_stability_iterate(row_eq, 0.01, 0), axis = 1) # ds > 0
-    x_neg_invades = df.apply(lambda row_eq:Check_ext_stability_iterate(row_eq, -0.01, 0), axis = 1) # ds < 0
+    x_pos_invades = df.apply(lambda row_eq:Check_ext_stability_iterate(row_eq, 0.01), axis = 1) # ds > 0
+    x_neg_invades = df.apply(lambda row_eq:Check_ext_stability_iterate(row_eq, -0.01), axis = 1) # ds < 0
     df['x_pos_invades'] = x_pos_invades
     df['x_neg_invades'] = x_neg_invades
     return(df)
