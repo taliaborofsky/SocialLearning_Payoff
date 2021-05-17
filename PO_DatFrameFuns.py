@@ -168,33 +168,30 @@ def get_UniqueEquilibria(df,if_save=False):
         df_eq.to_csv('UniqueEquilibria.csv', index = False)
     return(df_eq)
 
-# Check internal stability for each row
-def JstarStable(row):
-    # Checks Jstar stability... 1 if stable, 0 if not, -1 if leading eval is 1 (or -1)
-    # adds in the absolute value of leading eigenvalue
+
+
+def InternalStability(u1,r1,K,pc,beta):
+    # get eigenvalues
+    evals = lambdastar(u1,r1,K,pc,beta)
+    evals = evals[2:3]
+    #check which ones are complex
     
-    uvec = [row.u1eq, row.u2eq, row.bueq]
-    rvec = [row.r1eq, row.r2eq]
-    K = row.K
-    W = row.Weq
-    beta = row.beta
-    Jstar = Jac_UR(uvec, rvec, K,  W, beta)
-    evals = np.linalg.eigvals(Jstar).real
-    abs_evals = np.abs(evals)
-    maxval = max(abs_evals)
-    leadval = evals[np.where(np.abs(evals) == maxval)[0][0]]
-    row.lambdastar = leadval
-    if maxval<1:
-        row.URstable = 1.0
+    #  list of 4 arrays, with size of each array being the number of parameter combos
+    isComplex_mat = [np.iscomplex(lamda) for lamda in evals] 
+    # condense into a vector, with an entry for each equilibrium
+    isComplex = np.sum(np.array(isComplex_mat).astype(int),0)
+    f_isComplex = np.vectorize(lambda x: "Complex" if x>0 else "Real")
+    isComplex = f_isComplex(isComplex)
+    #  list of 4 magnitude arrays, with size being the number of parameter combos
+    lamda_mag = np.array([np.sqrt(np.real(lamda)**2 + np.imag(lamda)**2) for lamda in evals])
+    # for each eigenvalue for each equilibrium, determine if mag >=1 (so equilibrium is internally unstable)
+    maxmag = np.max(lamda_mag,0)
+    classify = np.vectorize(lambda x: "Stable" if x < 1 else "Unstable" if x > 1 else "Inconclusive")
+    Stability = classify(maxmag)
+    
+    return(isComplex, Stability)
 
-    elif maxval ==1:
-        row.URstable = -1.0
-    else:
-        row.URstable = 0.0
-    return(row)
-
-
-
+    
 
 def df_ext_stability_iterate(df):
     # Check stability to allele a (with delta_s > 0 and delta_s < 0)
@@ -204,7 +201,7 @@ def df_ext_stability_iterate(df):
     df['x_pos_invades'] = x_pos_invades
     df['x_neg_invades'] = x_neg_invades
     return(df)
-    
+
 def Check_ext_stability_iterate(row_eq, ds):
     # for a row of df, perturb and iterate 1000 steps
     # ds tells us if we're perturbing in the x  direction

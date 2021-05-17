@@ -61,14 +61,19 @@ def NextGen(uvec,xvec,rvec,K,pc,beta,deltas = [0, 0], eta=1):
 
     p1 = uvec[0] + xvec[0] 
     p2 = uvec[1] + xvec[1] 
-    
-    # get psi_1 and psi_2, and note that if the denominator is 0, then psi_1 = psi_2 = 0
-    mask_p1p2pos = p1 + p2 > 0
-    psi_1 = np.zeros(len(p1))
-    denom = p1[mask_p1p2pos] + p2[mask_p1p2pos]
-    psi_1[mask_p1p2pos] = p1[mask_p1p2pos]/denom
-    psi_2 = np.zeros(len(p1))
-    psi_2[mask_p1p2pos] = 1 - psi_1[mask_p1p2pos]
+    if np.array(p1).size==1: # p1 is a scalar
+        denom = p1 + p2
+        psi_1 = p1/denom if denom>0 else 0
+        psi_2 = p2/denom if denom>0 else 0
+    else:
+        # get psi_1 and psi_2, and note that if the denominator is 0, then psi_1 = psi_2 = 0
+        mask_p1p2pos = p1 + p2 > 0
+        psi_1 = np.zeros(np.array(p1).shape)
+        denom = p1[mask_p1p2pos] + p2[mask_p1p2pos]
+        psi_1[mask_p1p2pos] = p1[mask_p1p2pos]/denom
+        psi_2 = np.zeros(np.array(p1).shape)
+        psi_2[mask_p1p2pos] = 1 - psi_1[mask_p1p2pos]
+                     
     r1 = rvec[0]
     r2 = rvec[1]
     
@@ -139,11 +144,13 @@ def Grad_s(uvec, rvec, W, s, beta, mu):
     norm = scs.norm(mu,1)
     u1 = uvec[0]
     u2 = uvec[1]
-    psi_1 = np.zeros(len(u1))
-    mask = u1 + u2> 0
-    psi_1[mask] = u1[mask]/(u1[mask] + u2[mask])
-    psi_2 = np.zeros(len(u2))
-    psi_2[mask] = u2[mask]/(u1[mask] + u2[mask])
+    # get psi_1 and psi_2, and note that if the denominator is 0, then psi_1 = psi_2 = 0
+    mask_p1p2pos = u1 + u2 > 0
+    psi_1 = np.zeros(np.array(u1).shape)
+    denom = u1[mask_p1p2pos] + u2[mask_p1p2pos]
+    psi_1[mask_p1p2pos] = u1[mask_p1p2pos]/denom
+    psi_2 = np.zeros(np.array(u1).shape)
+    psi_2[mask_p1p2pos] = 1 - psi_1[mask_p1p2pos]
     r1 = rvec[0]
     r2 = rvec[1]
     fs = norm.pdf(s)
@@ -152,9 +159,14 @@ def Grad_s(uvec, rvec, W, s, beta, mu):
     return(C_s)
 
 # solve predicted equilibrium
-# input: parameters K, pc, beta
+# input: parameters K, pc, beta. For this to work properly, they all need to be the same size
 # output: u1 value at equilibrium
-def PredictEquilibrium_NoPref(K,pc,beta):
+def PredictEquilibrium_NoPref(K,pc,beta, AllowWarning = 0):
+    if AllowWarning==1:
+        if (np.array(K).shape != np.array(pc).shape) or (np.array(K).shape != np.array(beta).shape):
+            print('K, pc, beta are not all the same shape in PredictEquilibrium_NoPref. This may cause problems. Their shapes are ' + str(np.array(K).shape) +","+ str(np.array(pc).shape) +","+ str(np.array(beta).shape))
+        
+
     def Equilibrium_beta0(L,pc):
         return(2*L/(1+pc+2*L))
     
@@ -164,12 +176,17 @@ def PredictEquilibrium_NoPref(K,pc,beta):
         c = 2*L
         u1_minus = (-b - np.sqrt(b**2 - 4*a*c))/(2*a) # the equilibrium must be the smaller root
         return(u1_minus)
+    
     L = K*0.5 + pc
-    if np.array(K).size >1:
-        ans = np.zeros(K.shape)
-        ans[beta>0]= Equilibrium_betapos(L[beta>0],pc[beta>0],beta[beta>0])
-        ans[beta==0]=Equilibrium_beta0(L[beta==0],pc[beta==0])
-    else:
+    if np.array(beta).size >1:
+        ans = np.zeros(beta.shape)
+        if np.array(L).size>1:
+            ans[beta>0]= Equilibrium_betapos(L[beta>0],pc[beta>0],beta[beta>0])
+            ans[beta==0]=Equilibrium_beta0(L[beta==0],pc[beta==0])
+        else:
+            ans[beta>0]= Equilibrium_betapos(L,pc,beta[beta>0])
+            ans[beta==0]=Equilibrium_beta0(L,pc)
+    else:  
         ans = Equilibrium_betapos(L,pc,beta) if beta > 0 else Equilibrium_beta0(L,pc)
     
     return(ans)
