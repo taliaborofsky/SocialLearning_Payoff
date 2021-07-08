@@ -124,17 +124,18 @@ def lambdastar(u1,r1, K,pc,beta):
     R = 1 + r1
     L = K/2+pc
     W = 1 + pc +2*r1*L
-    a1 = -R
-    b1 = 1
+    a1 = -W*R
+    b1 = W
     c1 = 2*L*r1*u1*beta - L*r1*beta
     lamda1 = (-b1 + np.lib.scimath.sqrt(b1**2 - 4*a1*c1))/(2*a1)
     lamda2= (-b1 - np.lib.scimath.sqrt(b1**2 - 4*a1*c1))/(2*a1)
     
     a2 = -2*R*W*u1
     b2 = 2*W*u1 + K*R**2
-    c2 = -K*R - 2*L*W*r1*u1*beta
-    lamda3 = (-b2 + np.lib.scimath.sqrt(b2**2 - 4 *a2*c2))/(2*a2)
-    lamda4= (-b2 - np.lib.scimath.sqrt(b2**2 - 4*a2*c2))/(2*a2)
+    c2 = -K*R - 2*L*r1*u1*beta
+    discrim2 = b2**2 - 4*a2*c2
+    lamda3 = (-b2 + np.lib.scimath.sqrt(discrim2))/(2*a2) # this is the smaller one because a1 < 0
+    lamda4= (-b2 - np.lib.scimath.sqrt(discrim2))/(2*a2)
     
     return([lamda1,lamda2,lamda3,lamda4])
 
